@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ôn Tập Trắc Nghiệm GDQP&AN - Học Phần 1</title>
+    <style>
+        :root {
+            --primary: #1b5e20;
+            --primary-light: #4c8c4a;
+            --bg: #f4f6f8;
+            --card: #ffffff;
+            --text: #212529;
+            --correct: #2e7d32;
+            --correct-bg: #e8f5e9;
+            --wrong: #c62828;
+            --wrong-bg: #ffebee;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; background-color: var(--bg); color: var(--text); line-height: 1.6; }
+        header {
+            background: var(--primary); color: white; padding: 1rem 1.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+        header h1 { margin: 0; font-size: 1.2rem; }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+        button {
+            padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer;
+            font-weight: 600; transition: 0.2s; font-size: 0.9rem;
+        }
+        .btn-light { background: white; color: var(--primary); }
+        .btn-light:hover { background: #e8f5e9; }
+        .btn-warning { background: #ffb300; color: #212529; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-light); }
+
+        .container { max-width: 900px; margin: 20px auto; padding: 0 15px; }
+        .stats-bar {
+            background: var(--card); padding: 15px 20px; border-radius: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex-wrap: wrap; gap: 10px;
+        }
+        .badge { padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
+        .badge-total { background: #e3f2fd; color: #1565c0; }
+        .badge-correct { background: var(--correct-bg); color: var(--correct); }
+        .badge-wrong { background: var(--wrong-bg); color: var(--wrong); }
+
+        .question-card {
+            background: var(--card); padding: 20px; border-radius: 10px;
+            margin-bottom: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 5px solid transparent;
+        }
+        .question-card.answered-correct { border-left-color: var(--correct); }
+        .question-card.answered-wrong { border-left-color: var(--wrong); }
+        .q-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 14px; color: #1a1a1a; }
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        .option {
+            padding: 12px 15px; border: 1.5px solid #dee2e6; border-radius: 8px;
+            cursor: pointer; transition: all 0.15s; display: flex; align-items: flex-start; gap: 10px;
+        }
+        .option:hover:not(.disabled) { background-color: #f1f8e9; border-color: var(--primary-light); }
+        .option.disabled { cursor: default; }
+        .option.correct { background-color: var(--correct-bg); border-color: var(--correct); color: var(--correct); font-weight: 600; }
+        .option.wrong { background-color: var(--wrong-bg); border-color: var(--wrong); color: var(--wrong); }
+
+        /* Modal Import */
+        .modal {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            z-index: 200; justify-content: center; align-items: center; padding: 15px;
+        }
+        .modal-content {
+            background: white; padding: 25px; border-radius: 12px; max-width: 700px; width: 100%;
+            max-height: 90vh; overflow-y: auto;
+        }
+        textarea {
+            width: 100%; height: 250px; margin: 12px 0; padding: 12px;
+            border: 1px solid #ccc; border-radius: 8px; font-family: monospace; font-size: 0.9rem;
+        }
+        .filter-group { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filter-btn { background: #e0e0e0; color: #333; }
+        .filter-btn.active { background: var(--primary); color: white; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>GDQP&AN - Học Phần 1</h1>
+    <div class="controls">
+        <button class="btn-light" onclick="shuffleQuestions()">Trộn đề</button>
+        <button class="btn-light" onclick="resetQuiz()">Làm lại</button>
+        <button class="btn-warning" onclick="openModal()">+ Nạp đủ 400 câu</button>
+    </div>
+</header>
+
+<div class="container">
+    <div class="stats-bar">
+        <div>
+            <span class="badge badge-total" id="stat-total">Tổng: 0 câu</span>
+            <span class="badge badge-correct" id="stat-correct">Đúng: 0</span>
+            <span class="badge badge-wrong" id="stat-wrong">Sai: 0</span>
+        </div>
+        <div class="filter-group" style="margin:0;">
+            <button class="filter-btn active" onclick="setFilter('all', this)">Tất cả</button>
+            <button class="filter-btn" onclick="setFilter('unanswered', this)">Chưa làm</button>
+            <button class="filter-btn" onclick="setFilter('wrong', this)">Câu làm sai</button>
+        </div>
+    </div>
+
+    <div id="quiz-container"></div>
+</div>
+
+<!-- Modal Nạp Dữ Liệu -->
+<div class="modal" id="importModal">
+    <div class="modal-content">
+        <h2 style="margin-top:0;">Nạp danh sách câu hỏi & đáp án</h2>
+        <p style="font-size:0.9rem; color:#555;">
+            Dán toàn bộ câu hỏi từ file Word vào ô bên dưới. Thêm dấu <b>*</b> ngay trước chữ cái của đáp án đúng (Ví dụ: <code>*A. Nội dung đáp án đúng</code>). Hệ thống sẽ tự động lưu vào trình duyệt.
+        </p>
+        <textarea id="rawInput" placeholder="1. Đối tượng nghiên cứu của môn học Giáo dục quốc phòng và an ninh là gì?
+*A. Nghiên cứu về đường lối quân sự của Đảng, Công tác quốc phòng an ninh, Quân sự và kỹ năng quân sự cần thiết.
+B. Nghiên cứu về quan điểm đường lối quân sự của Đảng về xây dựng nền quốc phòng toàn dân.
+C. Nghiên cứu về quan điểm của chủ nghĩa Mác-Lênin, tư tưởng Hồ Chí Minh về công tác quốc phòng, an ninh.
+D. Nghiên cứu về quan điểm của Chủ nghĩa Mác – Lênin, tư tưởng Hồ Chí Minh về chiến tranh và quân đội."></textarea>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="closeModal()">Hủy</button>
+            <button class="btn-primary" onclick="parseAndSave()">Lưu & Bắt đầu học</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Dữ liệu mẫu 20 câu đầu trích từ tài liệu của bạn
+    const defaultQuestions = [
+        { q: "1. Đối tượng nghiên cứu của môn học Giáo dục quốc phòng và an ninh là gì?", options: ["A. Nghiên cứu về đường lối quân sự của Đảng, Công tác quốc phòng an ninh, Quân sự và kỹ năng quân sự cần thiết.", "B. Nghiên cứu về quan điểm đường lối quân sự của Đảng về xây dựng nền quốc phòng toàn dân.", "C. Nghiên cứu về quan điểm của chủ nghĩa Mác-Lênin, tư tưởng Hồ Chí Minh về công tác quốc phòng, an ninh.", "D. Nghiên cứu về quan điểm của Chủ nghĩa Mác – Lênin, tư tưởng Hồ Chí Minh về chiến tranh và quân đội."], answer: 0 },
+        { q: "2. Các phương pháp nghiên cứu môn học Giáo dục quốc phòng và an ninh?", options: ["A. Nghiên cứu lý thuyết, nghiên cứu thực tiễn.", "B. Nghiên cứu tập trung kết hợp với thảo luận nhóm.", "C. Kết hợp các phương pháp dạy học lý thuyết và thực hành.", "D. Nghiên cứu lý thuyết, nghiên cứu thực tiễn, kết hợp các phương pháp dạy học lý thuyết và thực hành."], answer: 3 },
+        { q: "3. Điều kiện để sinh viên được dự thi kết thúc học phần trong môn học Giáo dục quốc phòng và an ninh là?", options: ["A. Sinh viên có đủ 80% thời gian có mặt nghe giảng lý thuyết trên lớp và thực hành tại thao trường.", "B. Sinh viên có đủ số lần kiểm tra cho mỗi học phần theo quy định và phải có đủ 80% thời gian có mặt nghe giảng lý thuyết trên lớp và thực hành tại thao trường.", "C. Sinh viên có 25% thời gian vắng mặt nghe giảng lý thuyết trên lớp và thực hành tại thao trường.", "D. Sinh viên có đủ số lần kiểm tra cho mỗi học phần theo quy định, mỗi lần kiểm tra phải đạt 5 điểm trở lên và phải có đủ 20% thời gian có mặt nghe giảng lý thuyết trên lớp và thực hành tại thao trường."], answer: 1 },
+        { q: "4. Chọn câu trả lời sai. Môn học Giáo dục quốc phòng và an ninh là?", options: ["A. Là môn học chính khóa trong chương trình đào tạo đại học.", "B. Là môn học tự chọn trong chương trình đào tạo đại học.", "C. Là môn học bắt buộc trong chương trình đào tạo đại học.", "D. Là môn học điều kiện để xét tốt nghiệp trong chương trình đào tạo đại học."], answer: 1 },
+        { q: "5. Quá trình nghiên cứu môn học Giáo dục quốc phòng và an ninh phải nắm vững và vận dụng đúng đắn các quan điểm để tiếp cận khoa học?", options: ["A. Lịch sử, cụ thể biện chứng.", "B. Hệ thống, lịch sử, logic, thực tiễn.", "C. Khách quan, lịch sử, toàn diện.", "D. Hệ thống, biện chứng. Lịch sử, logic."], answer: 1 },
+        { q: "6. Giáo dục quốc phòng và an ninh là môn học bao gồm những kiến thức khoa học nào?", options: ["A. Xã hội, nhân văn, khoa học cơ bản và kỹ thuật quân sự.", "B. Xã hội, nhân văn và khoa học công nghệ.", "C. Xã hội, nhân văn, khoa học công nghệ và khoa học kỹ thuật quân sự.", "D. Xã hội, nhân văn, khoa học tự nhiên và khoa học kỹ thuật quân sự."], answer: 3 },
+        { q: "7. Nghiên cứu về nhiệm vụ, nội dung công tác quốc phòng, an ninh của Đảng hiện nay gồm những vấn đề gì?", options: ["A. Xây dựng lực lượng dân quân tự vệ, lực lượng dự bị động viên.", "B. Xây dựng lực lượng quốc phòng an ninh, lực lượng chiến tranh.", "C. Xây dựng và bảo vệ Tổ quốc Việt Nam Xã hội chủ nghĩa.", "D. Xây dựng tiềm lực và thế trận chiến tranh nhân dân."], answer: 0 },
+        { q: "8. Quan điểm của chủ nghĩa Mác - Lênin về chiến tranh là:", options: ["A. Một hiện tượng chính trị, xã hội.", "B. Một trong những nguyên nhân của bất bình đẳng giữa các dân tộc.", "C. Một hiện tượng chính trị, kinh tế và xã hội.", "D. Một hiện tượng chính trị, quân sự, văn hóa, xã hội."], answer: 0 },
+        { q: "9. Theo quan điểm của chủ nghĩa Mác - Lênin về chiến tranh là:", options: ["A. Mối quan hệ giữa những giai cấp đối kháng.", "B. Mối quan hệ giữa những tập đoàn người có lợi ích cơ bản đối lập nhau.", "C. Mối quan hệ đối lập giữa các chế độ xã hội, thể chế chính trị.", "D. Mối quan hệ đối lập nhau về chính trị, kinh tế, văn hóa."], answer: 1 },
+        { q: "10. Theo quan điểm của chủ nghĩa Mác - Lênin, chiến tranh xuất hiện từ hình thái kinh tế - xã hội nào?", options: ["A. Phong kiến.", "B. Chiếm hữu nô lệ.", "C. Cộng sản chủ nghĩa.", "D. Tư bản chủ nghĩa."], answer: 1 },
+        { q: "11. Chủ tịch Hồ Chí Minh ra lời kêu gọi toàn quốc kháng chiến chống thực dân Pháp vào thời gian nào?", options: ["A. Ngày 22 tháng 12 năm 1944.", "B. Ngày 22 tháng 12 năm 1946", "C. Ngày 19 tháng 12 năm 1946.", "D. Ngày 19 tháng 8 năm 1945."], answer: 2 },
+        { q: "12. Theo quan điểm của tư tưởng Hồ Chí Minh “cuộc chiến tranh do Pháp tiến hành ở nước ta là nhằm mục đích gì?", options: ["A. Thể hiện sức mạnh quân sự của một cường quốc.", "B. Giữ vững sự ổn định chính trị cho khu vực.", "C. Khai phá văn minh.", "D. Nhằm mục đích xâm lược."], answer: 3 },
+        { q: "13. Theo quan điểm của tư tưởng Hồ Chí Minh về cuộc chiến tranh của Nhân dân ta chống thực dân Pháp là:", options: ["A. Cuộc chiến tranh nhằm bảo vệ độc lập chủ quyền và thống nhất đất nước.", "B. Cuộc chiến tự vệ cách mạng chống lại kẻ thù.", "C. Cuộc chiến tranh chống giặc ngoại xâm.", "D. Cuộc chiến tranh bảo vệ khu vực Đông Dương."], answer: 0 },
+        { q: "14. Theo quan điểm của tư tưởng Hồ Chí Minh về tính chất xã hội của cuộc chiến tranh xâm lược là:", options: ["A. Cuộc chiến tranh nhằm khai phá văn minh.", "B. Cuộc chiến tranh phi nghĩa.", "C. Cuộc chiến tranh nhằm giữ vững sự ổn định chính trị cho khu vực.", "D. Cuộc chiến tranh chính nghĩa."], answer: 1 },
+        { q: "15. Theo quan điểm của tư tưởng Hồ Chí Minh, nhân tố quyết định thắng lợi trong chiến tranh là:", options: ["A. Con người.", "B. Vũ khí trang bị.", "C. Vũ khí trang bị và sự ủng hộ của bạn bè quốc tế.", "D. Con người và vũ khí trang bị."], answer: 0 },
+        { q: "16. Theo quan điểm của Ph. Ăngghen, quân đội là:", options: ["A. Sức mạnh quân sự của một quốc gia.", "B. Một tổ chức của một giai cấp và nhà nước nhất định.", "C. Lực lượng được trang bị vũ khí hiện đại.", "D. Sức mạnh quân sự của một quốc gia, được trang bị vũ khí hiện đại."], answer: 1 },
+        { q: "17. Sức mạnh chiến đấu của quân đội theo quan điểm của chủ nghĩa Mác - Lênin phụ thuộc vào những yếu tố?", options: ["A. Con người, điều kiện kinh tế, chính trị, văn hóa, tư tưởng, an ninh, quốc phòng.", "B. Con người, điều kiện kinh tế, chính trị, an ninh, quốc phòng, vũ khí trang bị.", "C. Con người, điều kiện kinh tế, chính trị, văn hóa, tư tưởng, vũ khí trang bị, khoa học quân sự.", "D. Con người, điều kiện kinh tế, chính trị, văn hóa, xã hội, vũ khí trang bị, khoa học quân sự."], answer: 2 },
+        { q: "18. Tiền thân của Quân đội nhân dân Việt Nam có tên gọi?", options: ["A. Đội Việt Nam tuyên truyền giải phóng quân.", "B. Quân đội quốc gia Việt Nam.", "C. Việt Nam giải phóng quân.", "D. Vệ quốc đoàn."], answer: 0 },
+        { q: "19. Theo tư tưởng Hồ Chí Minh, Quân đội nhân dân Việt Nam có những chức năng?", options: ["A. Chiến đấu bảo vệ Tổ quốc.", "B. Chiến đấu, sản xuất, công tác.", "C. Chiến đấu, lao động sản xuất, tuyên truyền.", "D. Chiến đấu và tham gia giữ gìn hòa bình khu vực."], answer: 1 },
+        { q: "20. Theo tư tưởng Hồ Chí Minh, nhiệm vụ cơ bản của quân đội là:", options: ["A. Xây dựng một đội quân ngày càng tinh nhuệ và sẵn sàng chiến đấu.", "B. Xây dựng một đội quân ngày càng hiện đại và sức chiến đấu cao.", "C. Xây dựng một đội quân đáp ứng nhiệm vụ tác chiến hiện đại.", "D. Xây dựng một đội quân ngày càng hùng mạnh và sẵn sàng chiến đấu."], answer: 3 }
+    ];
+
+    let questions = JSON.parse(localStorage.getItem('gdqp_questions')) || defaultQuestions;
+    let userAnswers = JSON.parse(localStorage.getItem('gdqp_answers')) || {};
+    let currentFilter = 'all';
+
+    function renderQuiz() {
+        const container = document.getElementById('quiz-container');
+        container.innerHTML = '';
+        let correctCount = 0;
+        let wrongCount = 0;
+
+        questions.forEach((item, index) => {
+            const userChoice = userAnswers[index];
+            const isAnswered = userChoice !== undefined;
+            const isCorrect = isAnswered && userChoice === item.answer;
+
+            if (isAnswered) {
+                if (isCorrect) correctCount++;
+                else wrongCount++;
+            }
+
+            if (currentFilter === 'unanswered' && isAnswered) return;
+            if (currentFilter === 'wrong' && (!isAnswered || isCorrect)) return;
+
+            const card = document.createElement('div');
+            card.className = 'question-card ' + (isAnswered ? (isCorrect ? 'answered-correct' : 'answered-wrong') : '');
+
+            let optionsHtml = item.options.map((opt, optIdx) => {
+                let optClass = 'option';
+                if (isAnswered) {
+                    optClass += ' disabled';
+                    if (optIdx === item.answer) optClass += ' correct';
+                    else if (optIdx === userChoice) optClass += ' wrong';
+                }
+                return `<div class="${optClass}" onclick="selectOption(${index}, ${optIdx})">${opt}</div>`;
+            }).join('');
+
+            card.innerHTML = `
+                <div class="q-title">${item.q}</div>
+                <div class="options">${optionsHtml}</div>
+            `;
+            container.appendChild(card);
+        });
+
+        document.getElementById('stat-total').textContent = `Tổng: ${questions.length} câu`;
+        document.getElementById('stat-correct').textContent = `Đúng: ${correctCount}`;
+        document.getElementById('stat-wrong').textContent = `Sai: ${wrongCount}`;
+    }
+
+    function selectOption(qIdx, optIdx) {
+        if (userAnswers[qIdx] !== undefined) return;
+        userAnswers[qIdx] = optIdx;
+        localStorage.setItem('gdqp_answers', JSON.stringify(userAnswers));
+        renderQuiz();
+    }
+
+    function resetQuiz() {
+        if (!confirm('Bạn muốn xóa toàn bộ lịch sử làm bài để làm lại từ đầu?')) return;
+        userAnswers = {};
+        localStorage.removeItem('gdqp_answers');
+        renderQuiz();
+    }
+
+    function shuffleQuestions() {
+        for (let i = questions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [questions[i], questions[j]] = [questions[j], questions[i]];
+        }
+        userAnswers = {};
+        localStorage.removeItem('gdqp_answers');
+        renderQuiz();
+    }
+
+    function setFilter(filter, btn) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderQuiz();
+    }
+
+    function openModal() { document.getElementById('importModal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('importModal').style.display = 'none'; }
+
+    function parseAndSave() {
+        const text = document.getElementById('rawInput').value.trim();
+        if (!text) return alert('Vui lòng dán nội dung câu hỏi!');
+
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        const parsed = [];
+        let currentQ = null;
+
+        lines.forEach(line => {
+            if (/^\d+[\.\)]\s/.test(line)) {
+                if (currentQ && currentQ.options.length > 0) parsed.push(currentQ);
+                currentQ = { q: line, options: [], answer: 0 };
+            } else if (/^(\*?[A-D][\.\)])\s/i.test(line) && currentQ) {
+                const isRight = line.startsWith('*');
+                const cleanLine = isRight ? line.substring(1).trim() : line;
+                if (isRight) currentQ.answer = currentQ.options.length;
+                currentQ.options.push(cleanLine);
+            }
+        });
+        if (currentQ && currentQ.options.length > 0) parsed.push(currentQ);
+
+        if (parsed.length === 0) {
+            return alert('Không nhận diện được định dạng câu hỏi. Hãy đảm bảo câu hỏi bắt đầu bằng số (vd: 1.) và đáp án bắt đầu bằng A., B., C., D.');
+        }
+
+        questions = parsed;
+        userAnswers = {};
+        localStorage.setItem('gdqp_questions', JSON.stringify(questions));
+        localStorage.removeItem('gdqp_answers');
+        closeModal();
+        renderQuiz();
+        alert(`Đã nạp thành công ${parsed.length} câu hỏi!`);
+    }
+
+    renderQuiz();
+</script>
+</body>
+</html>
